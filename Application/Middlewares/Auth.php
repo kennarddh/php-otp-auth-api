@@ -22,13 +22,4 @@ class Auth extends BaseMiddleware
 			$request->data['token'] = $token;
 		};
 	}
-
-	public static function after()
-	{
-		return function ($request, $response) {
-			$newBody = array_merge($response->body(), ['code' => $response->status()]);
-
-			$response->setBody($newBody);
-		};
-	}
 }
