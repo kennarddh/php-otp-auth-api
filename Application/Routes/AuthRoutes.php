@@ -12,6 +12,7 @@ class AuthRoutes extends BaseRoutes
 
 		$this->post('register', 'Auth::register');
 		$this->post('verify/send', 'Auth::verifySend');
+		$this->post('verify', 'Auth::verify');
 		$this->post('redirect', 'Auth::redirect');
 	}
 }

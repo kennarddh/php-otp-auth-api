@@ -2,18 +2,10 @@
 
 namespace Application\Controllers;
 
-use Exception as GlobalException;
 use Internal\Controllers\BaseController;
 use Internal\Database\Database;
 use Internal\Logger\Logger;
 use Redis;
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception;
-
-
-use League\OAuth2\Client\Provider\Google;
 
 final class Auth extends BaseController
 {
@@ -87,14 +79,50 @@ final class Auth extends BaseController
 
 		$composed_body = imap_mail_compose($envelope, [$part]);
 
-		imap_mail('kennarddh@localhost', 'Test OTP', "Your OTP is $otp", $composed_body);
+		imap_mail($email, 'Test OTP', "Your OTP is $otp", $composed_body);
 
 
 		$this->response->send(["success" => true], 200);
 	}
 
-	public function redirect()
+	function verify()
 	{
-		$this->response->send(["status" => "Redirected"], 200);
+		$body = $this->request->body;
+
+		$redis = new Redis();
+
+		$successRedisConnect = $redis->connect('127.0.0.1');
+
+		if (!$successRedisConnect) {
+			$this->response->send(["error" => "Internal server error"], 500);
+
+			Logger::log('error', "Insert user redis error");
+
+			return;
+		}
+
+		$correctOTP = $redis->get($body->username);
+
+		if ($correctOTP != $body->otp){
+			$this->response->send(["error" => "Wrong OTP"], 400);
+
+			return;
+		}
+
+		$success =	Database::Update('users', [
+			"isVerified" => true
+		], [
+			"username" => $body->username,
+		]);
+
+		if (!$success) {
+			$this->response->send(["error" => "Internal server error"], 500);
+
+			Logger::log('error', "Update user db error");
+
+			return;
+		}
+
+		$this->response->send(["success" => true], 200);
 	}
 }
