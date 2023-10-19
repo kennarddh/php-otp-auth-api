@@ -2,10 +2,18 @@
 
 namespace Application\Controllers;
 
+use Exception as GlobalException;
 use Internal\Controllers\BaseController;
 use Internal\Database\Database;
 use Internal\Logger\Logger;
 use Redis;
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+
+use League\OAuth2\Client\Provider\Google;
 
 final class Auth extends BaseController
 {
@@ -16,7 +24,8 @@ final class Auth extends BaseController
 		$success =	Database::Insert('users', [
 			"email" => $body->email,
 			"username" => $body->username,
-			"password" => password_hash($body->password, PASSWORD_DEFAULT)
+			"password" => password_hash($body->password, PASSWORD_DEFAULT),
+			"isVerified" => false
 		]);
 
 		if (!$success) {
@@ -26,6 +35,33 @@ final class Auth extends BaseController
 
 			return;
 		}
+
+		$this->response->send(["username" => $body->username], 201);
+	}
+
+	function verifySend()
+	{
+		$body = $this->request->body;
+
+		$users = Database::Get('users', ["email", "isVerified"], [
+			"username" => $body->username,
+		]);
+
+		$user = $users[0];
+
+		if (!$user) {
+			$this->response->send(["error" => "No user found with the username"], 400);
+
+			return;
+		}
+
+		if ($user["isVerified"]) {
+			$this->response->send(["error" => "User is already verified"], 400);
+
+			return;
+		}
+
+		$email = $user["email"];
 
 		$redis = new Redis();
 
@@ -43,6 +79,22 @@ final class Auth extends BaseController
 
 		$redis->set($body->username, $otp, 2 * 60);
 
-		$this->response->send(["otp" => $otp], 201);
+		$envelope["from"] = "No Reply <no-reply@localhost>";
+
+		$part["type"] = TYPETEXT;
+		$part["subtype"] = "plain";
+		$part["description"] = "description3";
+
+		$composed_body = imap_mail_compose($envelope, [$part]);
+
+		imap_mail('kennarddh@localhost', 'Test OTP', "Your OTP is $otp", $composed_body);
+
+
+		$this->response->send(["success" => true], 200);
+	}
+
+	public function redirect()
+	{
+		$this->response->send(["status" => "Redirected"], 200);
 	}
 }
