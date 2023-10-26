@@ -6,6 +6,8 @@ use Internal\Controllers\BaseController;
 use Internal\Database\Database;
 use Internal\Logger\Logger;
 use Redis;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 final class Auth extends BaseController
 {
@@ -103,7 +105,7 @@ final class Auth extends BaseController
 
 		$correctOTP = $redis->get($body->username);
 
-		if ($correctOTP != $body->otp){
+		if ($correctOTP != $body->otp) {
 			$this->response->send(["error" => "Wrong OTP"], 400);
 
 			return;
@@ -124,5 +126,41 @@ final class Auth extends BaseController
 		}
 
 		$this->response->send(["success" => true], 200);
+	}
+
+	function login()
+	{
+		$body = $this->request->body;
+
+		$users = Database::Get('users', ["username", "isVerified", "password"], [
+			"username" => $body->username,
+		]);
+
+		$user = $users[0];
+
+
+		if (!$user) {
+			$this->response->send(["error" => "No user found"], 400);
+
+			return;
+		}
+
+		if (!password_verify($body->password, $user['password'])) {
+			$this->response->send(["error" => "No user found"], 400);
+
+			return;
+		}
+
+		if (!$user['isVerified']) {
+			$this->response->send(["error" => "User is not verified"], 400);
+
+			return;
+		}
+
+		$jwt = JWT::encode([
+			"username" => $user['username']
+		], "TESTING", 'HS256');
+
+		$this->response->send(["success" => true, "token" => $jwt], 200);
 	}
 }
