@@ -24,6 +24,10 @@
 -   Check isVerified if false respond 401
 -   else respond 200 + JWT
 
+-   GET /auth/user
+-   { token: string }
+-   Get username and email
+
 ## FE
 
 ### Register page
