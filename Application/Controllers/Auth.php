@@ -2,6 +2,7 @@
 
 namespace Application\Controllers;
 
+use Exception;
 use Internal\Controllers\BaseController;
 use Internal\Database\Database;
 use Internal\Logger\Logger;
@@ -162,7 +163,25 @@ final class Auth extends BaseController
 			'exp' => time() + 60 * 60 * 24 * 5, // 5 Days
 		], "TESTING", 'HS256');
 
-
 		$this->response->send(["success" => true, "token" => $jwt], 200);
+	}
+
+	function user()
+	{
+		$token = $this->request->header("token");
+
+		try {
+			$decoded = JWT::decode($token, new Key("TESTING", 'HS256'));
+		} catch (Exception) {
+			return $this->response->send(["error" => "Invalid JWT"], 400);
+		}
+
+		$users = Database::Get('users', ["username", "email"], [
+			"username" => $decoded->username,
+		]);
+
+		$user = $users[0];
+
+		$this->response->send(["success" => true, "username" => $user['username'], "email" => $user['email']], 200);
 	}
 }
