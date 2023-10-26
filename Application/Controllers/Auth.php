@@ -158,8 +158,10 @@ final class Auth extends BaseController
 		}
 
 		$jwt = JWT::encode([
-			"username" => $user['username']
+			"username" => $user['username'],
+			'exp' => time() + 60 * 60 * 24 * 5, // 5 Days
 		], "TESTING", 'HS256');
+
 
 		$this->response->send(["success" => true, "token" => $jwt], 200);
 	}
